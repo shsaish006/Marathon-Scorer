@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "../main";
 import { 
   Play, Terminal as TerminalIcon, Sparkles, 
-  Layers, Code, CheckCircle, RefreshCw, Cpu 
+  Layers, Code, CheckCircle, RefreshCw, Cpu, Upload
 } from "lucide-react";
 
 // Pre-loaded elegant mock solution codes to show in the code editor
@@ -118,6 +118,33 @@ export default function Simulator() {
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
   
   const terminalEndRef = useRef<HTMLDivElement>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      setCode(content);
+      
+      const ext = file.name.split(".").pop()?.toLowerCase();
+      if (ext === "java") {
+        setLanguage("java");
+        const slimeChallenge = (challenges as any[])?.find(c => c.name === "BioSlime Survival");
+        if (slimeChallenge) setSelectedChallenge(slimeChallenge);
+      } else if (ext === "py") {
+        setLanguage("python");
+        const astroChallenge = (challenges as any[])?.find(c => c.name === "AstroRouter Routing");
+        if (astroChallenge) setSelectedChallenge(astroChallenge);
+      } else if (ext === "ts") {
+        setLanguage("typescript");
+        const gridChallenge = (challenges as any[])?.find(c => c.name === "MegaGrid Resource Optimizer");
+        if (gridChallenge) setSelectedChallenge(gridChallenge);
+      }
+    };
+    reader.readAsText(file);
+  };
 
   // Fetch Challenges
   const { data: challenges } = useQuery<any[]>({
@@ -244,6 +271,7 @@ export default function Simulator() {
               <div>
                 <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1 font-semibold">Challenge Model</label>
                 <select 
+                  value={selectedChallenge?.id || ""}
                   onChange={handleChallengeChange}
                   disabled={isSimulating}
                   className="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors"
@@ -288,7 +316,26 @@ export default function Simulator() {
           {/* Solution Code Editor Frame */}
           <div className="glass-panel rounded-xl overflow-hidden flex-1 flex flex-col min-h-[300px] border border-border shadow-sm">
             <div className="bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center justify-between">
-              <span className="text-xs font-mono text-slate-400">solution_payload.{language === "java" ? "java" : language === "python" ? "py" : "ts"}</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-mono text-slate-400">solution_payload.{language === "java" ? "java" : language === "python" ? "py" : "ts"}</span>
+                <input 
+                  type="file" 
+                  id="solution-file-upload" 
+                  className="hidden" 
+                  accept=".java,.py,.ts,.txt"
+                  onChange={handleFileUpload} 
+                  disabled={isSimulating}
+                />
+                <button
+                  type="button"
+                  onClick={() => document.getElementById("solution-file-upload")?.click()}
+                  disabled={isSimulating}
+                  className="flex items-center gap-1 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-300 font-semibold text-[10px] px-2.5 py-1 rounded transition-all shadow-sm disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  <Upload className="h-3 w-3" />
+                  <span>Upload Local File</span>
+                </button>
+              </div>
               <div className="flex gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
                 <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
