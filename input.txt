@@ -1,0 +1,127 @@
+==========================================================================
+AWS SERVERLESS SCORING SYSTEM - SIMULATOR INPUT DATA SPECIFICATION
+==========================================================================
+
+This document defines the theoretical specifications, binary/text formats, and
+concrete input examples for the three active challenges processed inside the
+AWS ECS Fargate scoring grid. 
+
+These specifications define the raw data stream provided to contestant solution
+sandboxes via standard input or file descriptors during parallel evaluations.
+
+---
+
+1. BIOSLIME SURVIVAL (CHALLENGE MODEL 1)
+--------------------------------------------------------------------------
+Complexity: Hard
+Domain: Cellular Automata & Gradient Path Optimization
+
+A. Ingestion Data Structure (input.txt):
+The raw text layout consists of a configuration header followed by a dense
+grid representation of the environment matrix.
+
+[Header Format]:
+Line 1: Seed (Secure Long Integer)
+Line 2: Grid Dimensions (Rows, Columns)
+Line 3: Max Simulation Steps (Ticks)
+
+[Grid Format]:
+Rows lines of whitespace-separated integers (0 for empty, 1 for active colony).
+
+B. Structural Example (input.txt payload):
+12345
+50 50
+200
+0 0 0 0 0 ... [up to 50 columns]
+0 0 1 0 0 ...
+0 1 1 1 0 ...
+0 0 1 0 0 ...
+0 0 0 0 0 ...
+... [up to 50 rows]
+
+C. Execution Semantics (Parsing & Steer):
+The contestant class reads this matrix into memory. The cellular automata moves
+according to dynamic local density parameters:
+- Neighbors count = Active cells within the surrounding 3x3 sub-grid.
+- Survival threshold: Active cells persist only if neighbors == 2 or 3.
+- Birth threshold: Empty cells instantiate an active colony if neighbors == 3.
+
+---
+
+2. ASTROROUTER ROUTING (CHALLENGE MODEL 2)
+--------------------------------------------------------------------------
+Complexity: Medium
+Domain: Dynamic Graph Routing & Weather Degradation
+
+A. Ingestion Data Structure (input.txt):
+Represents dynamic latency vectors between satellite constellation transponders, 
+heavily degraded by live solar radiation weather fields.
+
+[Header Format]:
+Line 1: Node Count (N)
+
+[Nodes Coordinate List]:
+N lines representing float 2D coordinates (X, Y) of each constellation node.
+
+[Base Latency Matrix]:
+N x N floats representing base propagation delay in milliseconds.
+
+[Solar Weather Degradation Vector]:
+N floats representing real-time solar decay indexes (0.0 for clear, 1.0 for max decay).
+
+B. Structural Example (input.txt payload):
+4
+0.0 0.0
+12.5 15.0
+-5.2 24.1
+18.0 -8.5
+0.00 45.20 89.10 52.30
+45.20 0.00 62.40 105.80
+89.10 62.40 0.00 142.10
+52.30 105.80 142.10 0.00
+0.02 0.45 0.88 0.12
+
+C. Execution Semantics (Routing Logic):
+The path computation algorithm parses the base latency matrix and dynamically
+degrades node latencies by applying the weather multiplier:
+  Effective Latency = Base Latency * (1.0 + Solar Decay Index)
+The solver returns a sequence of node integers representing the shortest path
+under dynamic atmospheric constraints.
+
+---
+
+3. MEGAGRID RESOURCE OPTIMIZER (CHALLENGE MODEL 3)
+--------------------------------------------------------------------------
+Complexity: Expert
+Domain: Resource Allocation & Marginal Cost Surges
+
+A. Ingestion Data Structure (input.txt):
+Defines the parameters of multiple heterogeneous energy generation plants and
+surging industrial load demands.
+
+[Header Format]:
+Line 1: Generators Count (G)
+Line 2: Active Loads Count (L)
+
+[Generator Specs]:
+G lines specifying: Max capacity (MW), marginal production cost ($/MWh), and plant type.
+
+[Active Industrial Loads Vector]:
+L lines representing real-time load demands in MW.
+
+B. Structural Example (input.txt payload):
+3
+2
+1000 2.5 nuclear
+500 0.5 solar
+300 1.2 hydro
+800
+450
+
+C. Execution Semantics (Optimization Logic):
+The optimizer calculates total load demand. To maximize efficiency, generators
+are sorted in ascending order of marginal cost. The active load is distributed
+optimally according to individual capacity ceilings:
+- Sort order: Solar ($0.5/MWh) -> Hydro ($1.2/MWh) -> Nuclear ($2.5/MWh).
+- Output: Solvers return percentage float allocations per generator.
+==========================================================================
