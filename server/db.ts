@@ -37,20 +37,29 @@ function extractWhereValue(whereClause: any): { field?: string, value?: any } {
 
   let value: any = undefined;
   let field: string | undefined = undefined;
+  const visited = new Set<any>();
 
   const inspect = (obj: any) => {
     if (!obj || typeof obj !== "object") return;
+    if (visited.has(obj)) return;
+    visited.add(obj);
+
     if (obj.name && typeof obj.name === "string") {
       if (obj.name === "id" || obj.name === "challenge_id" || obj.name === "key") {
         field = obj.name === "challenge_id" ? "challengeId" : obj.name;
       }
     }
-    if (obj.value !== undefined) {
+    if (obj.value !== undefined && !Array.isArray(obj.value)) {
       value = obj.value;
     }
     for (const k in obj) {
+      if (k === "table" || k === "schema" || k === "columns" || k === "config" || k === "shouldInlineParams") {
+        continue;
+      }
       if (k === "value") {
-        value = obj[k];
+        if (!Array.isArray(obj[k])) {
+          value = obj[k];
+        }
       } else if (typeof obj[k] === "object") {
         inspect(obj[k]);
       }
@@ -61,8 +70,12 @@ function extractWhereValue(whereClause: any): { field?: string, value?: any } {
 
   // Fallback: deep search for any primitive value in the Drizzle structure
   if (value === undefined) {
+    const searchVisited = new Set<any>();
     const searchVal = (obj: any): any => {
       if (!obj || typeof obj !== "object") return;
+      if (searchVisited.has(obj)) return;
+      searchVisited.add(obj);
+
       for (const k in obj) {
         if (typeof obj[k] === "number" || typeof obj[k] === "string") {
           return obj[k];
@@ -186,7 +199,7 @@ function bootstrapInMemorySimulator() {
 
         const resultObj = Array.isArray(values) ? insertedItems : insertedItems[0];
         const chain = {
-          returning: () => Promise.resolve(resultObj),
+          returning: () => Promise.resolve(insertedItems),
           then: (resolve: any) => resolve(resultObj)
         };
         return Object.assign(Promise.resolve(resultObj), chain);
@@ -201,14 +214,19 @@ function bootstrapInMemorySimulator() {
           const { field, value } = extractWhereValue(whereClause);
           let updatedItem: any = null;
 
+          console.log(`[SIMULATOR UPDATE] table: "${tableName}", query: ${field} = ${value}, store size: ${store.length}`);
+
           for (let i = 0; i < store.length; i++) {
             const matchId = (field === "id" || !field) && store[i].id === value;
             const matchKey = (field === "key" || !field) && store[i].key === value;
+
+            console.log(`  Checking item [${i}] id: ${store[i].id}, key: ${store[i].key} -> matchId: ${matchId}, matchKey: ${matchKey}`);
 
             if (matchId || matchKey) {
               store[i] = { ...store[i], ...updates };
               if (updates.updatedAt) store[i].updatedAt = new Date();
               updatedItem = store[i];
+              console.log(`  -> Item updated successfully! New state:`, JSON.stringify(store[i]));
             }
           }
 
