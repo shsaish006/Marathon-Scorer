@@ -197,12 +197,13 @@ class AstroRouterSolver:
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
+    const query = inputValue.trim();
+    if (!query) return;
 
     const userMsg: Message = {
       id: messages.length + 1,
       sender: "user",
-      text: inputValue,
+      text: query,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
@@ -210,11 +211,183 @@ class AstroRouterSolver:
     setInputValue("");
     setIsTyping(true);
 
+    const lowerQuery = query.toLowerCase();
+
     setTimeout(() => {
+      let botText = "";
+      let code = "";
+      let logic = "";
+
+      if (lowerQuery.includes("bioslime") || lowerQuery.includes("slime")) {
+        botText = "Applying Predicate Logic analysis to the BioSlime cellular automata environment. We formalize slime colony state transitions based on local neighborhood grid valuations to optimize survival weights:";
+        logic = `∀ x, y ∈ Grid:
+ColonyState(x, y, t) = 1 (Active Slime)
+NeighborCount(x, y, t) = ∑ (dr, dc) ∈ {-1, 0, 1}² \\ {(0,0)}: ColonyState(x+dr, y+dc, t)
+
+Transition Rules (Predicate Logic):
+1. Survival Rule:
+   ColonyState(x, y, t) = 1 ∧ (NeighborCount(x, y, t) = 2 ∨ NeighborCount(x, y, t) = 3) → ColonyState(x, y, t+1) = 1
+2. Birth Rule:
+   ColonyState(x, y, t) = 0 ∧ NeighborCount(x, y, t) = 3 → ColonyState(x, y, t+1) = 1
+3. Death Rule:
+   ColonyState(x, y, t) = 1 ∧ (NeighborCount(x, y, t) < 2 ∨ NeighborCount(x, y, t) > 3) → ColonyState(x, y, t+1) = 0`;
+        
+        code = `package com.topcoder.marathon.solution;
+
+import java.util.*;
+
+/**
+ * BioSlime Perfect Solver - Optimization Matrix.
+ * Satisfies the Predicate logic constraints: Survival(x) ↔ Neighbor(x) ∈ {2,3}
+ */
+public class Solution {
+    public int[] getMoveDirection(int[][] grid, int currentColonies) {
+        int bestR = 0, bestC = 0;
+        double maxScore = -1.0;
+        
+        for (int r = 0; r < grid.length; r++) {
+            for (int c = 0; c < grid[r].length; c++) {
+                if (grid[r][c] == 0) {
+                    double density = evaluateTransitionDensity(grid, r, c);
+                    if (density > maxScore) {
+                        maxScore = density;
+                        bestR = r;
+                        bestC = c;
+                    }
+                }
+            }
+        }
+        return new int[]{bestR, bestC};
+    }
+
+    private double evaluateTransitionDensity(int[][] grid, int r, int c) {
+        int activeNeighbors = 0;
+        for (int dr = -1; dr <= 1; dr++) {
+            for (int dc = -1; dc <= 1; dc++) {
+                if (dr == 0 && dc == 0) continue;
+                int nr = (r + dr + grid.length) % grid.length;
+                int nc = (c + dc + grid.length) % grid.length;
+                if (grid[nr][nc] == 1) activeNeighbors++;
+            }
+        }
+        return activeNeighbors == 3 ? 1.0 : (activeNeighbors == 2 ? 0.8 : 0.1);
+    }
+}`;
+      } else if (lowerQuery.includes("astrorouter") || lowerQuery.includes("router") || lowerQuery.includes("routing")) {
+        botText = "Constellation Routing Optimization Proof. To achieve a perfect score, routing path costs must minimize dynamic latency indices aggravated by solar weather vectors:";
+        logic = `Let G = (V, E) represent the constellation network.
+∀ (u, v) ∈ E:
+BaseLatency(u, v) = d(u, v) / c
+SolarWeatherDecay(v) = w(v) ∈ [0, 1.0]
+EffectiveCost(u, v) = BaseLatency(u, v) × (1.0 + SolarWeatherDecay(v))
+
+Predicate Logic Constraint (Shortest Path Formulation):
+Let Path P = (v0, v1, ..., vk):
+Cost(P) = sum(EffectiveCost(vi, vi+1))
+IsShortestPath(P) <-> for all Path Q: Cost(P) <= Cost(Q)`;
+        
+        code = `import typing
+
+class AstroRouterSolver:
+    """
+    Perfect AstroRouter Constellation Router.
+    Implements Dijkstra's Single-Source Shortest Path under dynamic decay weights.
+    """
+    def compute_routing_path(self, nodes: list, latencies: list, solar_matrix: list) -> list:
+        n = len(nodes)
+        dist = [float('inf')] * n
+        parent = [-1] * n
+        dist[0] = 0
+        visited = [False] * n
+        
+        for _ in range(n):
+            u = -1
+            min_dist = float('inf')
+            for i in range(n):
+                if not visited[i] and dist[i] < min_dist:
+                    min_dist = dist[i]
+                    u = i
+            
+            if u == -1 or u == n - 1:
+                break
+            visited[u] = True
+            
+            for v in range(n):
+                if not visited[v] and latencies[u][v] > 0:
+                    base = latencies[u][v]
+                    decay = solar_matrix[v]
+                    weight = base * (1.0 + decay)
+                    
+                    if dist[u] + weight < dist[v]:
+                        dist[v] = dist[u] + weight
+                        parent[v] = u
+        
+        path = []
+        curr = n - 1
+        while curr != -1:
+            path.append(curr)
+            curr = parent[curr]
+        path.reverse()
+        return path if path[0] == 0 else [0]`;
+      } else if (lowerQuery.includes("megagrid") || lowerQuery.includes("grid") || lowerQuery.includes("resource") || lowerQuery.includes("optimizer")) {
+        botText = "MegaGrid Capacity Balancing Proof. Resolves the optimal resource distribution between multiple generators under surging load matrices to achieve economic satisfaction:";
+        logic = `Let G represents generators list, L represents industrial loads demand.
+∀ g ∈ G: MaxCapacity(g) = c(g), FuelCost(g) = cost(g)
+TotalDemand = ∑ loads
+
+Optimization Goal (Economic Resource Allocation):
+Minimize ∑ Allocation(g) × FuelCost(g)
+Subject to:
+1. ∀ g ∈ G: 0 ≤ Allocation(g) ≤ MaxCapacity(g)
+2. ∑ Allocation(g) = TotalDemand
+
+Predicate Logic Rule:
+∀ g₁, g₂ ∈ G: FuelCost(g₁) < FuelCost(g₂) ∧ Allocation(g₂) > 0 → Allocation(g₁) = MaxCapacity(g₁)`;
+
+        code = `export class MegaGridOptimizer {
+  /**
+   * Perfect MegaGrid Resource Balancer.
+   * Allocates load generators starting with the lowest cost capacity ceiling.
+   */
+  optimizeDistribution(generators: any[], loads: number[]): number[] {
+    const totalDemand = loads.reduce((a, b) => a + b, 0);
+    const outputRatios = new Array(generators.length).fill(0);
+    
+    // Sort energy sources based on marginal cost configuration
+    const sortedGenerators = generators
+      .map((g, i) => ({ i, cost: g.cost, max: g.capacity }))
+      .sort((a, b) => a.cost - b.cost);
+
+    let remainingDemand = totalDemand;
+    for (const { i, max } of sortedGenerators) {
+      const take = Math.min(remainingDemand, max);
+      outputRatios[i] = take / max;
+      remainingDemand -= take;
+      if (remainingDemand <= 0) break;
+    }
+    
+    return outputRatios;
+  }
+}`;
+      } else if (lowerQuery.includes("hi") || lowerQuery.includes("hello") || lowerQuery.includes("hey")) {
+        botText = "Greetings, Contestant! I am the Fargate AI Query Resolver, here to analyze your scoring parameters. Ask me how to optimize 'BioSlime Survival', 'AstroRouter Routing', or 'MegaGrid Resource Optimizer' to formulate predicate mathematical proofs and inject 100.00 score solvers!";
+      } else {
+        botText = `Query Resolution Probing Completed. We have mapped your query context '${query}' under general predicate satisfaction boundaries. 
+
+Please request optimization proofs for one of our primary challenge engines:
+1. 'BioSlime Survival Automata Proof' (Java solver optimization)
+2. 'AstroRouter Constellation Routing Proof' (Python SSSP solver optimization)
+3. 'MegaGrid Capacity Resource Allocation Proof' (TypeScript economic optimization)
+
+Simply type one of the challenge names to receive the full predicate logic proof and inject the perfect scoring solver directly into your workspace!`;
+      }
+
       const botMsg: Message = {
         id: messages.length + 2,
         sender: "bot",
-        text: `Query Resolution Analysis Completed. I have mapped your context under predicate parameters. Click "MARK PERFECT" on the challenge screen to inject this optimized mathematical solution logic directly into the Fargate execution engine!`,
+        text: botText,
+        codeBlock: code || undefined,
+        logicBlock: logic || undefined,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, botMsg]);
