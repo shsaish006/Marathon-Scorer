@@ -1,0 +1,53 @@
+# ==========================================
+# GitHub Actions CI/CD Pipeline - Go Microservice
+# ==========================================
+name: Build and Test Go Aggregator
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'go-aggregator/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'go-aggregator/**'
+
+jobs:
+  go-pipeline:
+    name: Go Lint, Format and Compile checking
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v3
+
+      - name: Set up Go environment
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+          cache-dependency-path: 'go-aggregator/go.sum'
+
+      - name: Install dependencies
+        run: |
+          cd go-aggregator
+          go mod download
+
+      - name: Verify Go Code Formatting
+        run: |
+          cd go-aggregator
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Go code is not formatted properly. Run gofmt -w ."
+            exit 1
+          fi
+
+      - name: Compile Go Aggregator Binary
+        run: |
+          cd go-aggregator
+          go build -v ./...
+
+      - name: Run Go Unit Tests
+        run: |
+          cd go-aggregator
+          go test -v ./...

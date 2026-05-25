@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: marathon-go-aggregator
+  labels:
+    app: go-aggregator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: go-aggregator
+  template:
+    metadata:
+      labels:
+        app: go-aggregator
+    spec:
+      containers:
+        - name: go-aggregator
+          image: marathon-go-aggregator:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "128Mi"
+          env:
+            - name: PORT
+              value: "8080"
+            - name: DATABASE_URL
+              value: "postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):5432/$(DB_NAME)"
+            - name: DB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: marathon-configmap
+                  key: DB_USER
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: marathon-configmap
+                  key: DB_HOST
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: marathon-configmap
+                  key: DB_NAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: marathon-db-secret
+                  key: postgres-password
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: marathon-go-aggregator-service
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: go-aggregator
+  type: ClusterIP

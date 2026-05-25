@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # The Full-Stack Scoring Console application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - DATABASE_URL=postgres://postgres:marathonpass@db:5432/marathon_scorer
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - marathon-net
+
+  # High-performance Go-based Telemetry Aggregator
+  go-aggregator:
+    build:
+      context: ./go-aggregator
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DATABASE_URL=postgres://postgres:marathonpass@db:5432/marathon_scorer
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - marathon-net
+
+  # Local PostgreSQL database instance
+  db:
+    image: postgres:16-alpine
+    container_name: marathon-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=marathonpass
+      - POSTGRES_DB=marathon_scorer
+    volumes:
+      - marathon-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d marathon_scorer"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - marathon-net
+
+networks:
+  marathon-net:
+    driver: bridge
+
+volumes:
+  marathon-data:
+    driver: local

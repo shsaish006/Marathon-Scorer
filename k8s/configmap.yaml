@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: marathon-configmap
+  namespace: default
+data:
+  DB_HOST: "marathon-db-service"
+  DB_NAME: "marathon_scorer"
+  DB_USER: "postgres"
+  NODE_ENV: "production"
+  PORT: "5000"
