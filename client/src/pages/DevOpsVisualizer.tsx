@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { 
   Server, MessageSquare, Cpu, Database, 
   Settings, CheckCircle, ArrowRight, Zap, Play, 
-  AlertTriangle, RefreshCw, Radio, HardDrive, Terminal
+  AlertTriangle, RefreshCw, Radio, HardDrive, Terminal, Globe
 } from "lucide-react";
 
 interface SimulatedPod {
@@ -35,6 +35,241 @@ export default function DevOpsVisualizer() {
     "[SYSTEM] Awaiting scoring requests or manual traffic injections..."
   ]);
   const logEndRef = useRef<HTMLDivElement>(null);
+
+  const [region, setRegion] = useState("us-east-1");
+  const [commandInput, setCommandInput] = useState("");
+  const [isScanning, setIsScanning] = useState(false);
+  const [connectingHosts, setConnectingHosts] = useState<Record<string, "active" | "connecting" | "offline">>({
+    "Host-Node-01": "active",
+    "Host-Node-02": "active",
+    "Host-Node-03": "active"
+  });
+
+  const handleRegionChange = (newRegion: string) => {
+    if (newRegion === region && connectingHosts["Host-Node-01"] === "active") return;
+    
+    setRegion(newRegion);
+    setIsScanning(true);
+    
+    addLog(`aws-shell (${newRegion}) $ export AWS_DEFAULT_REGION=${newRegion}`);
+    addLog(`[SYSTEM] Switched active cloud provider endpoint to region ${newRegion}.`);
+    addLog(`aws-shell (${newRegion}) $ aws eks update-kubeconfig --name scorer-cluster --region ${newRegion}`);
+    addLog(`[SYSTEM] Fetching Kubernetes EKS authentication details...`);
+    
+    setConnectingHosts({
+      "Host-Node-01": "connecting",
+      "Host-Node-02": node02Active ? "connecting" : "offline",
+      "Host-Node-03": "connecting"
+    });
+
+    // Staggered sequence layers
+    setTimeout(() => {
+      addLog(`[EKS] Telemetry control plane linked successfully in ${newRegion}.`);
+      addLog(`[EKS] Probing cluster host virtual instances...`);
+    }, 500);
+
+    setTimeout(() => {
+      setConnectingHosts(prev => ({ ...prev, "Host-Node-01": "active" }));
+      addLog(`📡 [TELEMETRY] Host-01 established secure socket at zone ${newRegion}a.`);
+    }, 900);
+
+    setTimeout(() => {
+      if (node02Active) {
+        setConnectingHosts(prev => ({ ...prev, "Host-Node-02": "active" }));
+        addLog(`📡 [TELEMETRY] Host-02 established secure socket at zone ${newRegion}b.`);
+      } else {
+        addLog(`⚠️ [TELEMETRY] Host-02 at zone ${newRegion}b is offline. Evacuating task resources...`);
+      }
+    }, 1400);
+
+    setTimeout(() => {
+      setConnectingHosts(prev => ({ ...prev, "Host-Node-03": "active" }));
+      addLog(`📡 [TELEMETRY] Host-03 established secure socket at zone ${newRegion}c.`);
+      setIsScanning(false);
+      addLog(`✔ [EKS SUCCESS] All reachable nodes synchronized in region ${newRegion}. Cluster ready.`);
+    }, 1900);
+
+    if (simulatedPods.length > 0) {
+      addLog(`🚀 [ORCHESTRATOR] Migrating ${simulatedPods.length} active runner pods to new regional hosts...`);
+      setSimulatedPods(prevPods => prevPods.map(pod => ({
+        ...pod,
+        status: "Image Pulling" as any,
+        progress: 0,
+        cpu: Math.floor(Math.random() * 15) + 5,
+      })));
+    }
+  };
+
+  const getZoneLabel = (suffix: string) => {
+    const parts = region.split("-");
+    const formattedRegion = parts.map((p, i) => i === 1 ? p.charAt(0).toUpperCase() + p.slice(1) : p.toUpperCase()).join("-");
+    return `${formattedRegion}${suffix}`;
+  };
+
+  const handleCommandSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cmd = commandInput.trim();
+    if (!cmd) return;
+
+    setCommandInput("");
+    addLog(`aws-shell (${region}) $ ${cmd}`);
+
+    const lowerCmd = cmd.toLowerCase();
+    
+    if (lowerCmd === "help") {
+      addLog("==========================================================================");
+      addLog("💻 MOCK AWS CLOUD SHELL ORCHESTRATOR DIRECTORY:");
+      addLog("  • aws configure set region [region]      - Configures active AWS CLI region");
+      addLog("  • aws configure get region               - Queries active AWS CLI region");
+      addLog("  • aws ssm get-parameters                 - List Parameter Store configurations");
+      addLog("  • aws ssm put-parameter --key [K] --value [V]  - Hot-reload system parameter");
+      addLog("  • kubectl get nodes                      - List cluster compute host servers");
+      addLog("  • kubectl get nodes -o wide              - List cluster hosts with regional network specs");
+      addLog("  • kubectl describe nodes                 - Inspect regional labels and zone allocations");
+      addLog("  • kubectl get pods                       - Renders active task containers");
+      addLog("  • kubectl delete node host-02            - Injects incident outage on host 2");
+      addLog("  • kubectl scale --replicas=[N] deployment/scorer - Manually scales scoring grid");
+      addLog("  • aws ecs run-task --count [N]           - Spawns custom parallel fargate pods");
+      addLog("  • terraform apply                        - Provision and recycle active topology");
+      addLog("  • clear                                  - Clear terminal logs console");
+      addLog("==========================================================================");
+    } 
+    else if (lowerCmd.startsWith("aws configure set region ")) {
+      const parts = cmd.trim().split(/\s+/);
+      const newRegion = parts[parts.length - 1];
+      const validRegions = ["us-east-1", "us-west-2", "eu-west-1", "ap-south-1"];
+      if (validRegions.includes(newRegion)) {
+        handleRegionChange(newRegion);
+      } else {
+        addLog(`[ERROR] Unknown AWS region: '${newRegion}'. Supported: ${validRegions.join(", ")}`);
+      }
+    }
+    else if (lowerCmd === "aws configure get region") {
+      addLog("--------------------------------------------------------------------------");
+      addLog(`region = ${region}`);
+      addLog("--------------------------------------------------------------------------");
+    }
+    else if (lowerCmd === "clear") {
+      setConsoleLogs([`[SYSTEM] Shell console cleared. Connected to AWS Endpoint region ${region}.`]);
+    }
+    else if (lowerCmd === "kubectl get nodes") {
+      addLog("--------------------------------------------------------------------------");
+      addLog("NAME           STATUS   ROLES    AGE   VERSION");
+      addLog(`host-node-01   ${connectingHosts["Host-Node-01"] === "active" ? "Ready" : "NotReady"}   worker   12d   v1.28.2-eks-${region}`);
+      addLog(`host-node-02   ${node02Active && connectingHosts["Host-Node-02"] === "active" ? 'Ready' : 'NotReady'}  worker   12d   v1.28.2-eks-${region}`);
+      addLog(`host-node-03   ${connectingHosts["Host-Node-03"] === "active" ? "Ready" : "NotReady"}   worker   12d   v1.28.2-eks-${region}`);
+      addLog("--------------------------------------------------------------------------");
+    }
+    else if (lowerCmd === "kubectl get nodes -o wide") {
+      addLog("-------------------------------------------------------------------------------------------------------------");
+      addLog("NAME           STATUS   ROLES    AGE   VERSION             INTERNAL-IP   OS-IMAGE         KERNEL-VERSION");
+      addLog(`host-node-01   ${connectingHosts["Host-Node-01"] === "active" ? "Ready" : "NotReady"}    worker   12d   v1.28.2-eks-${region}   10.0.1.42     Amazon Linux 2   5.10.184-eks`);
+      addLog(`host-node-02   ${node02Active && connectingHosts["Host-Node-02"] === "active" ? "Ready" : "NotReady"}    worker   12d   v1.28.2-eks-${region}   10.0.2.19     Amazon Linux 2   5.10.184-eks`);
+      addLog(`host-node-03   ${connectingHosts["Host-Node-03"] === "active" ? "Ready" : "NotReady"}    worker   12d   v1.28.2-eks-${region}   10.0.3.84     Amazon Linux 2   5.10.184-eks`);
+      addLog("-------------------------------------------------------------------------------------------------------------");
+    }
+    else if (lowerCmd === "kubectl describe nodes") {
+      addLog("--------------------------------------------------------------------------");
+      addLog(`Name:               host-node-01`);
+      addLog(`Roles:              worker`);
+      addLog(`Labels:             topology.kubernetes.io/region=${region}`);
+      addLog(`                    topology.kubernetes.io/zone=${region}a`);
+      addLog(`Status:             ${connectingHosts["Host-Node-01"] === "active" ? "Ready" : "Probing"}`);
+      addLog(`Capacity / Alloc:   cpu: 4 / memory: 16Gi`);
+      addLog(`--`);
+      addLog(`Name:               host-node-02`);
+      addLog(`Roles:              worker`);
+      addLog(`Labels:             topology.kubernetes.io/region=${region}`);
+      addLog(`                    topology.kubernetes.io/zone=${region}b`);
+      addLog(`Status:             ${node02Active ? (connectingHosts["Host-Node-02"] === "active" ? "Ready" : "Probing") : "Offline"}`);
+      addLog(`Capacity / Alloc:   cpu: 4 / memory: 16Gi`);
+      addLog(`--`);
+      addLog(`Name:               host-node-03`);
+      addLog(`Roles:              worker`);
+      addLog(`Labels:             topology.kubernetes.io/region=${region}`);
+      addLog(`                    topology.kubernetes.io/zone=${region}c`);
+      addLog(`Status:             ${connectingHosts["Host-Node-03"] === "active" ? "Ready" : "Probing"}`);
+      addLog(`Capacity / Alloc:   cpu: 4 / memory: 16Gi`);
+      addLog("--------------------------------------------------------------------------");
+    }
+    else if (lowerCmd === "kubectl get pods") {
+      if (simulatedPods.length === 0) {
+        addLog("No resources found in default namespace.");
+      } else {
+        addLog("--------------------------------------------------------------------------");
+        addLog("NAME                      READY   STATUS      RESTARTS   AGE");
+        simulatedPods.forEach(p => {
+          addLog(`${p.id.padEnd(25)} 1/1     ${p.status.padEnd(11)} 0          ${p.progress}%`);
+        });
+        addLog("--------------------------------------------------------------------------");
+      }
+    }
+    else if (lowerCmd === "kubectl delete node host-02" || lowerCmd === "kubectl delete node host-node-02") {
+      if (node02Active) {
+        handleToggleNode02();
+      } else {
+        addLog("[ERROR] Host-Node-02 is already offline.");
+      }
+    }
+    else if (lowerCmd.startsWith("aws ecs run-task") || lowerCmd.startsWith("kubectl scale")) {
+      let count = 5;
+      const countMatch = cmd.match(/--count\s+(\d+)/) || cmd.match(/--replicas=(\d+)/);
+      if (countMatch) {
+        count = parseInt(countMatch[1]);
+      }
+      
+      addLog(`📡 [SCALE REQUEST] Triggering Fargate container deployment scale. Count: ${count}...`);
+      const nodes = ["Host-Node-01", "Host-Node-02", "Host-Node-03"];
+      const healthyNodes = node02Active ? nodes : ["Host-Node-01", "Host-Node-03"];
+      
+      const newPods: SimulatedPod[] = Array.from({ length: count }).map((_, idx) => {
+        const targetNode = healthyNodes[idx % healthyNodes.length];
+        return {
+          id: `fargate-pod-${Math.random().toString(36).substring(3, 7).toUpperCase()}`,
+          node: targetNode,
+          status: "Image Pulling",
+          progress: 0,
+          cpu: Math.floor(Math.random() * 20) + 5,
+          memory: Math.floor(Math.random() * 100) + 120
+        };
+      });
+      setSimulatedPods(prev => [...prev, ...newPods]);
+    }
+    else if (lowerCmd === "aws ssm get-parameters") {
+      addLog("--------------------------------------------------------------------------");
+      addLog("SSM PARAMETER CONFIGURATIONS (JSON):");
+      addLog("  {");
+      addLog("    \"SCORING_STRATEGY\": \"provisional\",");
+      addLog("    \"SCORING_TIMEOUT_SEC\": 180,");
+      addLog("    \"MAX_CONCURRENT_TASKS\": 5,");
+      addLog("    \"FARGATE_STARTUP_DELAY_MS\": 4000");
+      addLog("  }");
+      addLog("--------------------------------------------------------------------------");
+    }
+    else if (lowerCmd.includes("aws ssm put-parameter")) {
+      handleHotReload();
+    }
+    else if (lowerCmd === "terraform apply") {
+      addLog("--------------------------------------------------------------------------");
+      addLog("⏵ [TERRAFORM] Initializing connection to AWS API endpoint...");
+      addLog("⏵ [TERRAFORM] Refreshing active infrastructure state matrices...");
+      addLog("⏵ [TERRAFORM] Applying structural alterations...");
+      
+      setSsmFlashing(true);
+      setTimeout(() => {
+        setSsmFlashing(false);
+        if (!node02Active) {
+          setNode02Active(true);
+          setConnectingHosts(prev => ({ ...prev, "Host-Node-02": "active" }));
+        }
+        addLog("✔ [TERRAFORM SUCCESS] Provisioning completed successfully. 12 resources created, EKS Node health synced.");
+      }, 1500);
+      addLog("--------------------------------------------------------------------------");
+    }
+    else {
+      addLog(`[ERROR] Command '${cmd}' not recognized. Type 'help' to view the active directory schema.`);
+    }
+  };
 
   // Auto-scroll logs
   useEffect(() => {
@@ -83,10 +318,16 @@ export default function DevOpsVisualizer() {
     setNode02Active(nextState);
     
     if (!nextState) {
-      addLog("⚠️ [INCIDENT INJECTED] Severe Hardware Failure on Host-Node-02 (US-East-1b)!");
+      setConnectingHosts(prev => ({ ...prev, "Host-Node-02": "offline" }));
+      addLog(`⚠️ [INCIDENT INJECTED] Severe Hardware Failure on Host-Node-02 (${region}b)!`);
       addLog("🚨 [ORCHESTRATOR] Node-02 state set to OFFLINE. Initializing Pod Eviction protocols...");
     } else {
-      addLog("💚 [RESOLVED] Host-Node-02 restored successfully. Node joined cluster US-East-1b back in healthy standby.");
+      setConnectingHosts(prev => ({ ...prev, "Host-Node-02": "connecting" }));
+      addLog(`💚 [RESOLVED] Host-Node-02 restored successfully. Node joined cluster ${region}b back in healthy standby.`);
+      setTimeout(() => {
+        setConnectingHosts(prev => ({ ...prev, "Host-Node-02": "active" }));
+        addLog(`📡 [TELEMETRY] Host-02 joined cluster successfully in zone ${region}b.`);
+      }, 1000);
     }
   };
 
@@ -236,6 +477,21 @@ export default function DevOpsVisualizer() {
             Interactive topology and live CloudStack cluster visualizer. Inject incident alerts and traffic triggers to observe automated recovery!
           </p>
         </div>
+        {/* AWS Region Selector */}
+        <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-foreground self-start sm:self-center shadow-sm">
+          <Globe className="h-4 w-4 text-cyan-400 animate-pulse" />
+          <span className="font-semibold text-slate-300">Active AWS Region:</span>
+          <select 
+            value={region} 
+            onChange={(e) => handleRegionChange(e.target.value)}
+            className="bg-transparent border-0 focus:ring-0 text-cyan-400 font-mono font-bold cursor-pointer outline-none ml-1 focus:outline-none"
+          >
+            <option value="us-east-1" className="bg-slate-950 text-foreground">us-east-1 (N. Virginia)</option>
+            <option value="us-west-2" className="bg-slate-950 text-foreground">us-west-2 (Oregon)</option>
+            <option value="eu-west-1" className="bg-slate-950 text-foreground">eu-west-1 (Ireland)</option>
+            <option value="ap-south-1" className="bg-slate-950 text-foreground">ap-south-1 (Mumbai)</option>
+          </select>
+        </div>
       </div>
 
       {/* DevOps Operations Control Triggers Panel */}
@@ -278,6 +534,19 @@ export default function DevOpsVisualizer() {
       {/* SVG Map Canvas with Animated Flows */}
       <div className="glass-panel rounded-2xl p-6 overflow-hidden relative min-h-[480px] flex flex-col items-center justify-center border border-border shadow-sm">
         
+        {/* Advanced Layer-by-Layer Scanner overlay */}
+        {isScanning && (
+          <div className="absolute inset-0 bg-cyan-500/[0.03] pointer-events-none z-20 overflow-hidden flex flex-col justify-between">
+            <div className="w-full h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-pulse shadow-[0_0_10px_#22d3ee]" />
+            <div className="w-full h-10 bg-gradient-to-b from-cyan-400/20 to-transparent animate-scanner-sweep pointer-events-none" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="font-mono text-[10px] tracking-widest text-cyan-400 bg-slate-950/80 px-4 py-2 rounded-lg border border-cyan-500/30 shadow-lg animate-pulse uppercase">
+                Scanning Region Topology: {region}...
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Absolute indicators */}
         <div className="absolute top-4 left-4 flex flex-col gap-1 font-mono text-[10px] text-muted-foreground bg-muted/70 border border-border rounded-md px-3 py-2 shadow-sm z-10">
           <span className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400 font-bold">
@@ -426,94 +695,157 @@ export default function DevOpsVisualizer() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             
             {/* Host Node 01 */}
-            <div className="glass-panel border border-border rounded-xl p-4 space-y-3 shadow-sm flex flex-col justify-between">
+            <div className={`glass-panel border rounded-xl p-4 space-y-3 shadow-sm flex flex-col justify-between transition-all duration-300 ${
+              connectingHosts["Host-Node-01"] === "connecting" ? "border-cyan-500/30 bg-cyan-500/[0.02]" : "border-border"
+            }`}>
               <div>
                 <div className="flex items-center justify-between border-b border-border pb-1.5">
-                  <span className="text-xs font-bold text-foreground">US-East-1a (Host-01)</span>
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs font-bold text-foreground">{getZoneLabel("a")} (Host-01)</span>
+                  <span className={`h-2 w-2 rounded-full ${
+                    connectingHosts["Host-Node-01"] === "active" ? "bg-emerald-500 animate-pulse" :
+                    connectingHosts["Host-Node-01"] === "connecting" ? "bg-cyan-400 animate-pulse" : "bg-muted"
+                  }`} />
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-3 font-mono text-[9px] text-muted-foreground">
-                  <div>CPU Health: <strong>100%</strong></div>
-                  <div>Status: <strong className="text-emerald-500 uppercase">Active</strong></div>
-                  <div>RAM Load: <strong>34%</strong></div>
-                  <div>Hosted: <strong>{simulatedPods.filter(p => p.node === "Host-Node-01").length} pods</strong></div>
+                  <div>CPU Health: <strong>{connectingHosts["Host-Node-01"] === "active" ? "100%" : "0%"}</strong></div>
+                  <div>Status: <strong className={
+                    connectingHosts["Host-Node-01"] === "active" ? "text-emerald-500 uppercase" :
+                    connectingHosts["Host-Node-01"] === "connecting" ? "text-cyan-400 uppercase" : "text-muted-foreground uppercase"
+                  }>{connectingHosts["Host-Node-01"]}</strong></div>
+                  <div>RAM Load: <strong>{connectingHosts["Host-Node-01"] === "active" ? "34%" : "-"}</strong></div>
+                  <div>Hosted: <strong>{connectingHosts["Host-Node-01"] === "active" ? simulatedPods.filter(p => p.node === "Host-Node-01").length : 0} pods</strong></div>
                 </div>
               </div>
               <div className="pt-2 border-t border-border flex items-center gap-1">
-                <Radio className="h-3 w-3 text-emerald-500" />
-                <span className="text-[9px] text-muted-foreground font-mono">Telemetry link established</span>
+                {connectingHosts["Host-Node-01"] === "active" ? (
+                  <>
+                    <Radio className="h-3 w-3 text-emerald-500 animate-pulse" />
+                    <span className="text-[9px] text-muted-foreground font-mono">Telemetry link established</span>
+                  </>
+                ) : connectingHosts["Host-Node-01"] === "connecting" ? (
+                  <>
+                    <RefreshCw className="h-3 w-3 text-cyan-400 animate-spin" />
+                    <span className="text-[9px] text-cyan-400 font-mono font-semibold animate-pulse">Establishing socket...</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-[9px] text-muted-foreground font-mono font-semibold">Telemetry link offline</span>
+                  </>
+                )}
               </div>
             </div>
 
             {/* Host Node 02 */}
-            <div className={`glass-panel border rounded-xl p-4 space-y-3 shadow-sm flex flex-col justify-between transition-colors ${
-              node02Active ? "border-border" : "border-destructive/30 bg-destructive/5"
+            <div className={`glass-panel border rounded-xl p-4 space-y-3 shadow-sm flex flex-col justify-between transition-all duration-300 ${
+              !node02Active ? "border-destructive/30 bg-destructive/5" :
+              connectingHosts["Host-Node-02"] === "connecting" ? "border-cyan-500/30 bg-cyan-500/[0.02]" : "border-border"
             }`}>
               <div>
                 <div className="flex items-center justify-between border-b border-border pb-1.5">
-                  <span className="text-xs font-bold text-foreground">US-East-1b (Host-02)</span>
-                  <span className={`h-2 w-2 rounded-full ${node02Active ? 'bg-emerald-500 animate-pulse' : 'bg-destructive animate-ping'}`} />
+                  <span className="text-xs font-bold text-foreground">{getZoneLabel("b")} (Host-02)</span>
+                  <span className={`h-2 w-2 rounded-full ${
+                    !node02Active ? 'bg-destructive animate-ping' :
+                    connectingHosts["Host-Node-02"] === "active" ? "bg-emerald-500 animate-pulse" :
+                    connectingHosts["Host-Node-02"] === "connecting" ? "bg-cyan-400 animate-pulse" : "bg-muted"
+                  }`} />
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-3 font-mono text-[9px] text-muted-foreground">
-                  <div>CPU Health: <strong>{node02Active ? "100%" : "0%"}</strong></div>
-                  <div>Status: <strong className={node02Active ? "text-emerald-500 uppercase" : "text-destructive uppercase"}>{node02Active ? "Active" : "Offline"}</strong></div>
-                  <div>RAM Load: <strong>{node02Active ? "28%" : "-"}</strong></div>
-                  <div>Hosted: <strong>{node02Active ? simulatedPods.filter(p => p.node === "Host-Node-02").length : 0} pods</strong></div>
+                  <div>CPU Health: <strong>{node02Active && connectingHosts["Host-Node-02"] === "active" ? "100%" : "0%"}</strong></div>
+                  <div>Status: <strong className={
+                    !node02Active ? "text-destructive uppercase" :
+                    connectingHosts["Host-Node-02"] === "active" ? "text-emerald-500 uppercase" :
+                    connectingHosts["Host-Node-02"] === "connecting" ? "text-cyan-400 uppercase" : "text-muted-foreground uppercase"
+                  }>{!node02Active ? "Offline" : connectingHosts["Host-Node-02"]}</strong></div>
+                  <div>RAM Load: <strong>{node02Active && connectingHosts["Host-Node-02"] === "active" ? "28%" : "-"}</strong></div>
+                  <div>Hosted: <strong>{node02Active && connectingHosts["Host-Node-02"] === "active" ? simulatedPods.filter(p => p.node === "Host-Node-02").length : 0} pods</strong></div>
                 </div>
               </div>
               <div className="pt-2 border-t border-border flex items-center gap-1">
-                {node02Active ? (
-                  <>
-                    <Radio className="h-3 w-3 text-emerald-500" />
-                    <span className="text-[9px] text-muted-foreground font-mono">Telemetry link established</span>
-                  </>
-                ) : (
+                {!node02Active ? (
                   <>
                     <AlertTriangle className="h-3 w-3 text-destructive animate-bounce" />
                     <span className="text-[9px] text-destructive font-mono font-semibold">Incident: Rescheduling...</span>
+                  </>
+                ) : connectingHosts["Host-Node-02"] === "active" ? (
+                  <>
+                    <Radio className="h-3 w-3 text-emerald-500 animate-pulse" />
+                    <span className="text-[9px] text-muted-foreground font-mono">Telemetry link established</span>
+                  </>
+                ) : connectingHosts["Host-Node-02"] === "connecting" ? (
+                  <>
+                    <RefreshCw className="h-3 w-3 text-cyan-400 animate-spin" />
+                    <span className="text-[9px] text-cyan-400 font-mono font-semibold animate-pulse">Establishing socket...</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-[9px] text-muted-foreground font-mono font-semibold">Telemetry link offline</span>
                   </>
                 )}
               </div>
             </div>
 
             {/* Host Node 03 */}
-            <div className="glass-panel border border-border rounded-xl p-4 space-y-3 shadow-sm flex flex-col justify-between">
+            <div className={`glass-panel border rounded-xl p-4 space-y-3 shadow-sm flex flex-col justify-between transition-all duration-300 ${
+              connectingHosts["Host-Node-03"] === "connecting" ? "border-cyan-500/30 bg-cyan-500/[0.02]" : "border-border"
+            }`}>
               <div>
                 <div className="flex items-center justify-between border-b border-border pb-1.5">
-                  <span className="text-xs font-bold text-foreground">US-East-1c (Host-03)</span>
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs font-bold text-foreground">{getZoneLabel("c")} (Host-03)</span>
+                  <span className={`h-2 w-2 rounded-full ${
+                    connectingHosts["Host-Node-03"] === "active" ? "bg-emerald-500 animate-pulse" :
+                    connectingHosts["Host-Node-03"] === "connecting" ? "bg-cyan-400 animate-pulse" : "bg-muted"
+                  }`} />
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-3 font-mono text-[9px] text-muted-foreground">
-                  <div>CPU Health: <strong>100%</strong></div>
-                  <div>Status: <strong className="text-emerald-500 uppercase">Active</strong></div>
-                  <div>RAM Load: <strong>22%</strong></div>
-                  <div>Hosted: <strong>{simulatedPods.filter(p => p.node === "Host-Node-03").length} pods</strong></div>
+                  <div>CPU Health: <strong>{connectingHosts["Host-Node-03"] === "active" ? "100%" : "0%"}</strong></div>
+                  <div>Status: <strong className={
+                    connectingHosts["Host-Node-03"] === "active" ? "text-emerald-500 uppercase" :
+                    connectingHosts["Host-Node-03"] === "connecting" ? "text-cyan-400 uppercase" : "text-muted-foreground uppercase"
+                  }>{connectingHosts["Host-Node-03"]}</strong></div>
+                  <div>RAM Load: <strong>{connectingHosts["Host-Node-03"] === "active" ? "22%" : "-"}</strong></div>
+                  <div>Hosted: <strong>{connectingHosts["Host-Node-03"] === "active" ? simulatedPods.filter(p => p.node === "Host-Node-03").length : 0} pods</strong></div>
                 </div>
               </div>
               <div className="pt-2 border-t border-border flex items-center gap-1">
-                <Radio className="h-3 w-3 text-emerald-500" />
-                <span className="text-[9px] text-muted-foreground font-mono">Telemetry link established</span>
+                {connectingHosts["Host-Node-03"] === "active" ? (
+                  <>
+                    <Radio className="h-3 w-3 text-emerald-500 animate-pulse" />
+                    <span className="text-[9px] text-muted-foreground font-mono">Telemetry link established</span>
+                  </>
+                ) : connectingHosts["Host-Node-03"] === "connecting" ? (
+                  <>
+                    <RefreshCw className="h-3 w-3 text-cyan-400 animate-spin" />
+                    <span className="text-[9px] text-cyan-400 font-mono font-semibold animate-pulse">Establishing socket...</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-[9px] text-muted-foreground font-mono font-semibold">Telemetry link offline</span>
+                  </>
+                )}
               </div>
             </div>
 
           </div>
         </div>
 
-        {/* Live Orchestrator console log feed */}
+        {/* Interactive AWS Cloud Shell Terminal */}
         <div className="lg:col-span-4 flex flex-col space-y-2">
           <h3 className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-1.5">
             <Terminal className="h-4.5 w-4.5 text-primary" />
-            Dynamic Cluster Events Feed
+            Interactive AWS Cloud Shell
           </h3>
 
-          <div className="flex-1 bg-slate-950 text-slate-200 border border-slate-800 rounded-xl p-4 font-mono text-[9px] leading-relaxed flex flex-col justify-between h-[160px] shadow-sm">
-            <div className="space-y-1.5 overflow-y-auto max-h-[120px] flex-1 pr-1.5 scrollbar-thin">
+          <div className="flex-1 bg-slate-950 text-slate-200 border border-slate-800 rounded-xl p-4 font-mono text-[9px] leading-relaxed flex flex-col justify-between min-h-[220px] shadow-sm">
+            <div className="space-y-1.5 overflow-y-auto max-h-[140px] flex-1 pr-1.5 scrollbar-thin">
               {consoleLogs.map((log, index) => {
                 let textClass = "text-slate-400";
-                if (log.includes("LOAD TRAFFIC SURGE") || log.includes("PROPAGATED")) textClass = "text-emerald-400";
-                else if (log.includes("INCIDENT INJECTED") || log.includes("EVICTED") || log.includes("WARNING")) textClass = "text-rose-400";
-                else if (log.includes("SSM OVERRIDE") || log.includes("📡")) textClass = "text-violet-400 font-bold";
-                else if (log.includes("KAFKA") || log.includes("AWS")) textClass = "text-cyan-400";
+                if (log.includes("LOAD TRAFFIC SURGE") || log.includes("PROPAGATED") || log.includes("✔")) textClass = "text-emerald-400";
+                else if (log.includes("INCIDENT INJECTED") || log.includes("EVICTED") || log.includes("WARNING") || log.includes("[ERROR]")) textClass = "text-rose-400";
+                else if (log.includes("SSM OVERRIDE") || log.includes("📡") || log.includes("💻")) textClass = "text-violet-400 font-bold";
+                else if (log.includes("KAFKA") || log.includes("AWS") || log.includes("aws-shell")) textClass = "text-cyan-400";
                 
                 return (
                   <div key={index} className={textClass}>
@@ -523,10 +855,17 @@ export default function DevOpsVisualizer() {
               })}
               <div ref={logEndRef} />
             </div>
-            <div className="border-t border-slate-900 pt-2 flex items-center justify-between text-[8px] text-slate-500">
-              <span>SANDBOX ENGINE: RUNNING</span>
-              <span>POLL rate: Real-time</span>
-            </div>
+            
+            <form onSubmit={handleCommandSubmit} className="border-t border-slate-900 pt-2.5 flex items-center gap-1.5 text-[10px] text-slate-300">
+              <span className="text-emerald-400 font-bold font-mono">aws-shell ({region}) $</span>
+              <input 
+                type="text"
+                value={commandInput}
+                onChange={(e) => setCommandInput(e.target.value)}
+                className="flex-1 bg-transparent border-0 outline-none p-0 text-slate-200 focus:ring-0 text-[10px] font-mono leading-none border-b border-transparent focus:border-cyan-500/20"
+                placeholder="type 'help' for commands..."
+              />
+            </form>
           </div>
         </div>
 

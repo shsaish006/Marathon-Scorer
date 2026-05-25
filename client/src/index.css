@@ -173,3 +173,40 @@
 .pulse-node {
   animation: pulseGlow 2s infinite ease-in-out;
 }
+
+/* Advanced scanner sweep animation */
+@keyframes scannerSweep {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(1000%);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-100%);
+    opacity: 0.3;
+  }
+}
+
+.animate-scanner-sweep {
+  animation: scannerSweep 6s infinite linear;
+}
+
+/* Dynamic slide-in micro-animations */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.3s ease-out forwards;
+}
+

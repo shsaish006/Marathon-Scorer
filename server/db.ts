@@ -83,7 +83,9 @@ function bootstrapInMemorySimulator() {
     challenges: [],
     submissions: [],
     parameter_store: [],
-    infra_metrics: []
+    parameterStore: [],
+    infra_metrics: [],
+    infraMetrics: []
   };
 
   let challengeIdSeq = 1;
@@ -144,6 +146,9 @@ function bootstrapInMemorySimulator() {
             item.recordedAt = new Date();
           }
           
+          if (!memoryStore[tableName]) {
+            memoryStore[tableName] = [];
+          }
           memoryStore[tableName].push(item);
           insertedItems.push(item);
         }
