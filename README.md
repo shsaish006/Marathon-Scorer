@@ -167,3 +167,39 @@ The sequential network scanning flowchart illustrates how EKS host controllers p
       ▼                           ▼                           ▼
 [Host-01: Online]           [Host-02: Online/Offline]   [Host-03: Online]
 ```
+
+---
+
+## 5. Theoretical CI/CD Pipeline and Static Verification Case Study
+
+This section details the theoretical framework of the automated continuous integration and continuous deployment (CI/CD) pipelines configured inside this repository.
+
+### 5.1 CI/CD Directed Acyclic Graph (DAG) Topology
+
+The deployment workflows are modeled as a Directed Acyclic Graph where execution blocks are strictly separated into stages. The diagram below illustrates the pipeline dependencies:
+
+```
+[GitHub Push Event] ──► [Job 1: Build & Test Applications] (Vite/TypeScript Compile Checks)
+                                       │
+                                       ▼ (Requires Success)
+                        [Job 2: Deploy to AWS Fargate] (Docker Build/Push & ECS Service Task Sync)
+```
+
+### 5.2 Case Study: Workflow Ingestion Parameter Resolution
+
+During continuous integration runs, a parsing error was identified causing Job 1 (`Build & Test Applications`) to fail immediately within 7 seconds of initiation, consequently skipping the Fargate deployment step:
+
+* **Symptom**: The runner runner-agent aborted execution at the Node environment provisioning step.
+* **Root Cause Analysis**: Inside `.github/workflows/deploy.yml`, the environment setup step configured using `actions/setup-node@v3` declared an invalid, unrecognized schema parameter parameter key:
+  ```yaml
+  with:
+    node-size: 20
+  ```
+  The workflow parser strictly validates inputs against the actions configuration schema definition. The key `node-size` is non-existent, causing the runner manager to fail the build step during startup verification.
+* **Mitigation & Structural Fix**: The parameter key was updated to its valid standard representation:
+  ```yaml
+  with:
+    node-version: 20
+  ```
+  This correction enables the setup-node action block to locate and provision Node.js runtime version 20, successfully proceed to package lock installation (`npm ci`), and run full TypeScript compiler validation check tasks (`npm run check`).
+

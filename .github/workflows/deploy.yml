@@ -23,7 +23,7 @@ jobs:
       - name: Set up Node.js environment
         uses: actions/setup-node@v3
         with:
-          node-size: 20
+          node-version: 20
           cache: 'npm'
 
       - name: Install dependencies
