@@ -16,6 +16,106 @@ import { queryClient } from "./main";
 
 type Tab = "dashboard" | "submissions" | "challenges" | "scorers" | "configuration" | "analytics" | "health" | "logs" | "resolver";
 
+const DEFAULT_CODES: Record<string, string> = {
+  "BioSlime Survival": `package com.topcoder.marathon.solution;
+
+import java.util.*;
+
+/**
+ * BioSlime Survival Solver - Standard Contestant Submission.
+ * Steers the growth of slime colonies using local density gradient paths.
+ */
+public class Solution {
+    public int[] getMoveDirection(int[][] grid, int currentColonies) {
+        int bestR = 0, bestC = 0;
+        double maxScore = -1.0;
+        
+        for (int r = 0; r < grid.length; r++) {
+            for (int c = 0; c < grid[r].length; c++) {
+                if (grid[r][c] == 0) {
+                    double density = calculateLocalDensity(grid, r, c);
+                    if (density > maxScore) {
+                        maxScore = density;
+                        bestR = r;
+                        bestC = c;
+                    }
+                }
+            }
+        }
+        return new int[]{bestR, bestC};
+    }
+
+    private double calculateLocalDensity(int[][] grid, int r, int c) {
+        int count = 0;
+        for (int dr = -1; dr <= 1; dr++) {
+            for (int dc = -1; dc <= 1; dc++) {
+                int nr = (r + dr + grid.length) % grid.length;
+                int nc = (c + dc + grid.length) % grid.length;
+                if (grid[nr][nc] == 1) count++;
+            }
+        }
+        return count / 8.0;
+    }
+}`,
+  "AstroRouter Routing": `import typing
+
+class AstroRouterSolver:
+    """
+    AstroRouter Constellation Packet Router.
+    Calculates shortest routing vectors under dynamic solar decay.
+    """
+    def compute_routing_path(self, nodes: list, latencies: list, solar_matrix: list) -> list:
+        n = len(nodes)
+        path = [0]
+        visited = {0}
+        
+        while len(visited) < n:
+            curr = path[-1]
+            next_node = -1
+            best_weight = float('inf')
+            
+            for neighbor in range(n):
+                if neighbor not in visited:
+                    base = latencies[curr][neighbor]
+                    solar_decay = solar_matrix[neighbor]
+                    effective_lat = base * (1.0 + solar_decay)
+                    
+                    if effective_lat < best_weight:
+                        best_weight = effective_lat
+                        next_node = neighbor
+            
+            if next_node == -1:
+                break
+            visited.add(next_node)
+            path.append(next_node)
+            
+        return path`,
+  "MegaGrid Resource Optimizer": `export class MegaGridOptimizer {
+  /**
+   * MegaGrid Resource Balancer.
+   * Adjusts generator loads against industrial dynamic demand surges.
+   */
+  optimizeDistribution(generators: any[], loads: number[]): number[] {
+    const totalDemand = loads.reduce((a, b) => a + b, 0);
+    const outputRatios = new Array(generators.length).fill(0);
+    
+    const sortedIdxs = generators
+      .map((g, i) => ({ i, cost: g.cost, max: g.capacity }))
+      .sort((a, b) => a.cost - b.cost);
+
+    let remainingDemand = totalDemand;
+    for (const { i, max } of sortedIdxs) {
+      const take = Math.min(remainingDemand, max);
+      outputRatios[i] = take / max;
+      remainingDemand -= take;
+      if (remainingDemand <= 0) break;
+    }
+    
+    return outputRatios;
+  }
+}`
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [theme, setTheme] = useState<"dark" | "light">("light");
@@ -80,9 +180,32 @@ export default function App() {
   // Sync default manualChallengeId once challenges load
   useEffect(() => {
     if (challenges && challenges.length > 0 && manualChallengeId === "") {
-      setManualChallengeId(challenges[0].id);
+      const firstId = challenges[0].id;
+      setManualChallengeId(firstId);
+      
+      let defaultLang = "java";
+      if (challenges[0].name === "AstroRouter Routing") defaultLang = "python";
+      else if (challenges[0].name === "MegaGrid Resource Optimizer") defaultLang = "typescript";
+      setManualLanguage(defaultLang);
+      setManualCode(DEFAULT_CODES[challenges[0].name] || "");
     }
   }, [challenges]);
+
+  const handleManualChallengeChange = (id: number) => {
+    setManualChallengeId(id);
+    const selected = challenges?.find(c => c.id === id);
+    if (selected) {
+      let defaultLang = "java";
+      if (selected.name === "AstroRouter Routing") defaultLang = "python";
+      else if (selected.name === "MegaGrid Resource Optimizer") defaultLang = "typescript";
+      setManualLanguage(defaultLang);
+      setManualCode(DEFAULT_CODES[selected.name] || "");
+    }
+  };
+
+  const handleManualLanguageChange = (lang: string) => {
+    setManualLanguage(lang);
+  };
 
   const { data: submissions } = useQuery<any[]>({
     queryKey: ["/api/submissions"],
@@ -520,10 +643,11 @@ export default function App() {
                       </label>
                       <select
                         value={manualChallengeId}
-                        onChange={(e) => setManualChallengeId(Number(e.target.value))}
+                        onChange={(e) => handleManualChallengeChange(Number(e.target.value))}
                         className="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary"
                         required
                       >
+                        <option value="" disabled>-- Select Target Scorer Challenge --</option>
                         {challenges?.map(c => (
                           <option key={c.id} value={c.id}>{c.name} ({c.complexity})</option>
                         ))}
@@ -536,7 +660,7 @@ export default function App() {
                       </label>
                       <select
                         value={manualLanguage}
-                        onChange={(e) => setManualLanguage(e.target.value)}
+                        onChange={(e) => handleManualLanguageChange(e.target.value)}
                         className="w-full bg-background border border-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary"
                         required
                       >
