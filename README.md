@@ -1,134 +1,169 @@
-# AWS On-Demand Serverless Scoring Infrastructure Cockpit
+# Enterprise AWS Serverless Scoring Infrastructure and Cluster Cockpit
 
-A production-grade, highly optimized Full-Stack DevOps Cockpit and On-Demand Scoring Simulator demonstrating the successful migration of a monolithic legacy scoring server into a fully event-driven, cost-optimized, and containerized serverless architecture on Amazon Web Services (AWS).
-
----
-
-## Platform Visualization
-
-### System DevOps Architecture Topology
-The migrated serverless architecture is depicted in the schematic layout below. Submissions publish events to Kafka, triggering AWS Lambda to scale ECS Fargate container instances dynamically, which fetch overrides from the SSM Parameter Store and invoke callback score updates.
-
-![DevOps Architecture Diagram](architecture_diagram.png)
-
-### Cockpit Performance Dashboard
-Our premium dark-themed management cockpit provides real-time telemetry into active container clusters, Kafka message queues, CPU allocations, success thresholds, and interactive Recharts graphs tracking over 80 percent cost savings.
-
-![Cockpit Performance Dashboard Mockup](dashboard_mockup.png)
+This repository hosts a production-grade, highly optimized Full-Stack DevOps Visualizer Cockpit and On-Demand scoring platform. The system is designed to simulate a transition from legacy monolithic servers into a modern, decoupled, event-driven, and highly resilient serverless topology on Amazon Web Services (AWS).
 
 ---
 
-## Core Architectural Overviews
+## 1. System Architecture Overview
 
-The platform is designed around two core integration engines:
+The platform uses a decoupled, event-driven architecture designed to process algorithmic code submissions under heavy parallel loads. The theoretical framework spans across ingestion buffers, automated event routing, containerized sandboxes, and highly available persistence databases.
 
-### 1. Spring-Boot Architectural Patterns in TypeScript (Backend)
-To provide the modularity, type safety, and testability of an enterprise Java Spring Boot backend, the server is structured into clean decoupled layers:
-*   **Repository Layer (DAO)**: Pure database interactions using Drizzle ORM (located in server/repositories/).
-*   **Service Layer (Business Logic)**: Event-driven queues, async scoring timers, and Systems Manager (SSM) Parameter Store overrides (located in server/services/).
-*   **Controller Layer (REST Endpoints)**: Handles HTTP dispatching and Zod body validation schemas (located in server/controllers/).
+```mermaid
+graph TD
+    subgraph Client Tier
+        CP[Client Portal Solution Upload] --> |REST POST /api/submit| CR[Controller validation]
+    end
 
-### 2. Live Interactive Scoring Simulator (Frontend)
-A glowing glassmorphic React workspace enabling users to write solution payloads, submit solutions to a mock Kafka queue, monitor live Fargate container boot states, and inspect streaming Java test suite compilation and execution logs in a live terminal window.
+    subgraph Messaging & Routing Tier
+        CR --> |Produce Stream Event| KM[Kafka MSK Buffer Partitions]
+        KM --> |MSK Event Source Mapping| AL[AWS Lambda Event Router]
+    end
 
----
+    subgraph Orchestration & Execution Tier
+        AL --> |Invoke Task| EF[AWS ECS Fargate Scorer Grid]
+        SSM[AWS Parameter Store Config] --> |SIGUSR1 Hot-Reload| EF
+    end
 
-## Repository File Structure
+    subgraph Storage & Database Tier
+        EF --> |Fetch Rules & Write Telemetry| DB[AWS RDS PostgreSQL Master]
+        EF --> |Dispatch Final Scores| CB[External Review Callback API]
+    end
 
-*   **client/**: React and Tailwind CSS Frontend
-    *   **src/pages/Dashboard.tsx**: Modern analytics cockpit utilizing Recharts for active CPU and memory bandwidth loads, active tasks gauges, and EC2 vs. Fargate cost comparison charts.
-    *   **src/pages/DevOpsVisualizer.tsx**: Functioning DevOps Incident and Cluster Orchestrator Simulator with animated SVG path data packet pulses, operations incident controls (Traffic Surge, Host Failure, SSM Hot-Reload), and active containers grids.
-    *   **src/pages/Simulator.tsx**: Coding sandbox editor with mock contestant solution templates, container boot step progression indicators, and streaming log console streams.
-    *   **src/pages/ParameterStore.tsx**: Enables active overrides and full CRUD (Add/Delete/Patch) configurations of live SSM environment parameters.
-    *   **src/pages/QueryResolver.tsx**: Adaptive AI co-pilot chat interface utilizing predicate logic proofs and automated perfect solution code injections.
-    *   **src/App.tsx**: Main React layout, state query hooks, navigation sidebars, and dark/light theme triggers.
-    *   **src/index.css**: Custom design system tokens including responsive glassmorphism backdrops and adaptive theme classes.
-*   **server/**: Layered TypeScript Express Backend
-    *   **controllers/**: scoring, metrics, and parameters REST controllers resolving requests using Zod schemas.
-    *   **services/**: event-driven queues, task allocators, and telemetry tracking schedulers.
-    *   **repositories/**: relational PostgreSQL transactions and data access interfaces.
-    *   **db.ts**: Database client setup featuring synchronous fallback connections to the In-Memory Simulator if the host database is unreachable.
-    *   **routes.ts**: Connects REST controllers, services, and repositories to API endpoints.
-    *   **index.ts**: Bootstraper file responsible for bootstrapping Express, seeding database assets, and linking client bundlers.
-*   **go-aggregator/**: High-performance Go microservice aggregating raw telemetry statistics into persistent PostgreSQL records.
-*   **java/**: Production-grade Java scorer executables mimicking containerized Fargate task runner algorithms.
-*   **k8s/**: Complete local or production Kubernetes manifests including deployments, StatefulSets, secrets, ConfigMaps, and Horizontal Pod Autoscalers.
-*   **terraform/**: Cloud infrastructure configuration templates for AWS ECS Fargate, Lambda, MSK, ECR, VPC, and SSM resources.
-*   **.github/workflows/**: Continuous Integration pipelines covering TypeScript validation check tasks, Vite building, Docker image creation, and automated Go test suites.
-
----
-
-## Core Java Scoring Runner
-
-The core solution scoring is executed in Java 17 OpenJDK inside on-demand Fargate task containers, using standard contest validation architectures:
-*   **java/BioSlimeTester.java**: A cellular automata simulation testing program. Runs a BioSlime grid across multiple ticks inside 50x50 matrices, analyzing algorithmic cellular colony survival densities and calculating provisional execution success rates.
-*   **java/Scorer.java**: The Fargate container entry point script. It handles arguments parsing, calls Systems Manager API wrappers to resolve parameter overrides, runs the simulator grid, compiles contestant scores, and dispatches JSON score results to the external scoreboard callback endpoint.
-
----
-
-## DevOps Incident and Cluster Orchestrator Simulator
-
-The platform includes an advanced cluster orchestrator dashboard within the DevOps Visualizer to visually demonstrate heavy serverless infrastructure and auto-scaling events.
-
-### 1. Animated SVG Data Packet Pulses
-Whenever solution tasks are running or a heavy load surge is active, glowing colored data circles traverse the topology path lines between distinct systems:
-*   Client Portal to Kafka MSK Queue
-*   Kafka MSK Queue to AWS Lambda Router
-*   AWS Lambda Router to ECR Container Pull and ECS Fargate Cluster
-*   ECS Fargate Cluster to AWS Parameter Store (SSM Configuration pull)
-*   ECS Fargate Cluster to AWS RDS PostgreSQL (Database persistence write)
-*   AWS RDS PostgreSQL to Review Score Callback API
-
-### 2. Operations Incident Control Triggers
-Users can manually inject real-world serverless scenarios through the visual control board:
-*   **Traffic Surge (15x scale)**: Dispatches 15 simultaneous scoring submissions onto the Kafka MSK partition queue. The autoscaler instantly provisions a grid of 15 running task pods inside the active cluster.
-*   **Node Outage / Eviction**: Simulates a severe host failure on Host-Node-02 (AZ US-East-1b). Node status changes to OFFLINE, all hosted pods turn red (Evicted / NodeCrashed), and the orchestrator immediately triggers eviction protocols, rescheduling replacement pods onto healthy Host-node-01 and Host-node-03 instances.
-*   **SSM Hot-Reload Config**: Updates active Parameter Store overrides and broadcasts sync triggers (SIGUSR1) to all active container tasks, flashing the active grid and hot-reloading configurations in real-time.
-
-### 3. Active Container Pods Grid
-Renders dynamic, high-fidelity pod cards representing each active Fargate task:
-*   Pod Unique ID and assigned Host Node.
-*   Operational state indicator: Image Pulling, Warm Booting, Running Examples, Running Provisional, Terminating, or Evicted.
-*   Live progress percentage bar.
-*   Container CPU usage percentage and memory allocation statistics.
-
----
-
-## Local Setup and Installation Instructions
-
-### Prerequisites
-*   Node.js version 18 or above
-*   npm package manager
-*   PostgreSQL database (Optional: The application automatically boots into a high-fidelity In-Memory Database Simulator if a local database host is unreachable)
-
-### 1. Environment Configurations
-Create a .env file inside the root directory and define the following variables:
-```env
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/marathon_scorer
-PORT=5000
-NODE_ENV=development
+    style CP fill:#f3f4f6,stroke:#8b5cf6,stroke-width:2px
+    style KM fill:#fef3c7,stroke:#d97706,stroke-width:2px
+    style AL fill:#fee2e2,stroke:#dc2626,stroke-width:2px
+    style EF fill:#e0f7fa,stroke:#0891b2,stroke-width:2px
+    style DB fill:#dbeafe,stroke:#2563eb,stroke-width:2px
 ```
 
-### 2. Install Project Dependencies
-Run the command below to retrieve and install all node packages:
-```bash
-npm install
+---
+
+## 2. Core Architectural Components
+
+### 2.1 Decoupled Ingestion and Queue Buffering
+Submissions uploaded through the Client Portal are processed as short-lived scoring payloads. Instead of allocating persistent server memory or spinning up immediate threads that expose the infrastructure to compute lockouts, the backend produces structured events into an active Kafka MSK topic.
+* **Partitioned Queue Management**: Kafka buffers the high-throughput ingestion spikes, maintaining consumer offsets even during sudden traffic surges.
+* **Consumer Decoupling**: Compute instances do not directly interface with the submission portals. The queue acts as a strict firewall, preventing denial-of-service threats on the core evaluation grid.
+
+### 2.2 AWS Lambda Dynamic Orchestrator
+An event-source mapping links the Kafka MSK partition queue to an AWS Lambda router. When new submission events are pushed to the partition topics, Lambda executes inside a highly optimized microVM environment to evaluate cluster capacity.
+* **Auto-Scaling Invocation**: Lambda calculates the queue depth and triggers container instantiations dynamically inside the ECS Fargate cluster.
+* **Zero-Idle Standby**: The orchestrator relies on zero active runner processes during low-load intervals, eliminating ongoing compute costs.
+
+### 2.3 Containerized Execution Sandbox (ECS Fargate)
+Algorithmic evaluations execute within isolated AWS ECS Fargate tasks running on-demand containers. This isolates contestant code execution and guarantees high security:
+* **Multi-Layer Isolation**: Each submission runs in a separate kernel-namespace sandbox. Memory boundaries are strictly enforced to prevent cross-contestant memory exposure or server environment manipulation.
+* **SSM Parameter Store Hook**: Upon instantiation, Fargate container processes retrieve environment parameters, validation timeouts, and scoring policies dynamically from the AWS Parameter Store (SSM).
+
+### 2.4 High Availability Multi-AZ Database Layer
+Persistent transaction metrics, challenge definitions, and evaluation logs are consolidated inside an AWS RDS PostgreSQL database. The data engine features Multi-Availability Zone replication:
+* **Active-Passive Synchronous Replication**: Writes are synchronously committed to the primary instance in the default zone and cloned to the secondary standby instance in an alternate availability zone.
+* **Automated Failover Probing**: If the primary database experiences a hardware failure, EKS and Lambda telemetry controllers redirect write queries to the newly promoted primary master standby instance.
+
+---
+
+## 3. Interactive DevOps Visualizer State Machines
+
+The cockpit dashboard features an advanced Cluster Orchestration Visualizer simulating real-world failures, autoscaling traffic events, and Multi-Region cluster telemetry state machines.
+
+### 3.1 Bi-Directional AWS Region Selection Synchronization
+The visualizer synchronizes the UI Region Select component with the AWS Cloud Shell terminal console. When a user updates the active region, the platform processes the change through a strict sequential pipeline:
+
+```
+[UI Select Dropdown / Cloud Shell Input]
+                  │
+                  ▼
+[1. Command Shell Execution Logging]
+ ── aws-shell $ export AWS_DEFAULT_REGION=<region>
+ ── aws-shell $ aws EKS update-kubeconfig --name scorer-cluster --region <region>
+                  │
+                  ▼
+[2. Global SVG Scanner Overlay Activation]
+ ── Pulse Scanner sweep indicates active connection context switch
+                  │
+                  ▼
+[3. Staggered EKS Telemetry Probing]
+ ── Host-Node-01: Probing ──► Telemetry Verified (900ms)
+ ── Host-Node-02: Probing ──► Telemetry Verified (1400ms)
+ ── Host-Node-03: Probing ──► Telemetry Verified (1900ms)
+                  │
+                  ▼
+[4. Active Pod Eviction & Migration]
+ ── Gracefully migrate all running task pods to new Availability Zones
 ```
 
-### 3. Start the Development Server
-Execute the command below to initialize the backend Express server on port 5000 and mount the Vite development client:
-```bash
-npm run dev
+### 3.2 EKS Node Outage and Incident Eviction Mechanics
+To demonstrate structural disaster recovery patterns, the visualizer allows users to simulate a severe hardware failure on compute hosts (specifically Host-Node-02 in AZ B). 
+
+```
+                                [Hardware Failure Injected]
+                                             │
+                                             ▼
+                             [Status Set to NotReady / OFFLINE]
+                                             │
+                                             ▼
+                           [Active Pod Eviction Initialized]
+                                             │
+                                             ▼
+                     ┌───────────────────────┴───────────────────────┐
+                     ▼                                               ▼
+         [Terminate Evicted Pods]                        [Spawn Replacement Pods]
+     ── RAM / CPU stats reset to zero               ── Staggered placement on Node 1 / 3
+     ── Progress markers wiped                      ── Transition to "Image Pulling" state
 ```
 
-### 4. Verify Code Integrity
-Run the TypeScript compiler checks to validate codebase type safety:
-```bash
-npm run check
+---
+
+## 4. Multi-Layer DevOps Flowcharts
+
+### 4.1 End-to-End Solution Scoring Pipeline
+
+The flowchart below traces a contestant submission from the initial code upload to the final score callback dispatch:
+
+```
++-----------------------------------------------------------------------------------+
+| 1. INGESTION                                                                      |
+|    Contestant Solution Code Upload  --> REST API Validation  --> Kafka Partition  |
++-----------------------------------------------------------------------------------+
+                                                                       │
+                                                                       ▼
++-----------------------------------------------------------------------------------+
+| 2. DISPATCH & SCHEDULING                                                          |
+|    Partition Backlog Trigger --> AWS Lambda MicroVM Invoked --> ECS Fargate Task  |
++-----------------------------------------------------------------------------------+
+                                                                       │
+                                                                       ▼
++-----------------------------------------------------------------------------------+
+| 3. SANDBOX ISOLATION & PROVISIONING                                               |
+|    Pull Scorer Container Image --> Retrieve SSM Config Parameters --> Run Scorer  |
++-----------------------------------------------------------------------------------+
+                                                                       │
+                                                                       ▼
++-----------------------------------------------------------------------------------+
+| 4. PERSISTENCE & TELEMETRY                                                        |
+|    Execute Cellular Automata --> Write RDS Transaction Master --> Score Callback  |
++-----------------------------------------------------------------------------------+
 ```
 
-### 5. Production Compilation and Asset Bundling
-To build the application for production deployment, run the command below. It compiles client pages and packages the backend TypeScript bundle into the dist directory:
-```bash
-npm run build
+### 4.2 Multi-AZ Sequential Telemetry Connection
+
+The sequential network scanning flowchart illustrates how EKS host controllers probe and link regional compute nodes when switching AWS endpoints:
+
+```
+               [Switched Cloud Provider Region Context]
+                                  │
+      ┌───────────────────────────┼───────────────────────────┐
+      │ Zone A                    │ Zone B                    │ Zone C
+      ▼                           ▼                           ▼
+[Probe Host-Node-01]        [Probe Host-Node-02]        [Probe Host-Node-03]
+  Telemetry Request           Telemetry Request           Telemetry Request
+      │                           │                           │
+  (900ms Delay)               (1400ms Delay)              (1900ms Delay)
+      │                           │                           │
+      ▼                           ▼                           ▼
+[Socket Established]        [Socket Established]        [Socket Established]
+  Link Active                 Link Active (If Healthy)    Link Active
+      │                           │                           │
+      ▼                           ▼                           ▼
+[Host-01: Online]           [Host-02: Online/Offline]   [Host-03: Online]
 ```
