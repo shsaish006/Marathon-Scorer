@@ -78,24 +78,55 @@ function extractWhereValue(whereClause: any): { field?: string, value?: any } {
 }
 
 // 2. High-Fidelity In-Memory Drizzle Simulator bootstrapper
+// Define shared global store at module-level to persist across re-initialization calls
+const memoryStore: Record<string, any[]> = {
+  challenges: [],
+  submissions: [],
+  parameterStore: [],
+  infraMetrics: []
+};
+
+const getTableName = (tableObj: any): string => {
+  if (!tableObj) return "challenges";
+  
+  // Extract name from standard keys or Drizzle internal name property
+  let rawName: any = tableObj?.key || tableObj?._?.name || "";
+  
+  // Fallback scan of Symbol properties for robust Drizzle ORM detection
+  if (!rawName) {
+    const symbols = Object.getOwnPropertySymbols(tableObj);
+    for (const sym of symbols) {
+      if (sym.toString().includes("drizzle:Name") || sym.toString().includes("Name")) {
+        const val = tableObj[sym];
+        if (typeof val === "string") {
+          rawName = val;
+        } else if (val !== undefined && val !== null) {
+          rawName = String(val);
+        }
+        break;
+      }
+    }
+  }
+
+  const nameStr = typeof rawName === "string" ? rawName : String(rawName || "");
+  const name = nameStr.toLowerCase();
+  
+  if (name.includes("challenge")) return "challenges";
+  if (name.includes("submission")) return "submissions";
+  if (name.includes("parameter")) return "parameterStore";
+  if (name.includes("metrics")) return "infraMetrics";
+  return "challenges";
+};
+
+let challengeIdSeq = 1;
+let submissionIdSeq = 1;
+let metricsIdSeq = 1;
+
 function bootstrapInMemorySimulator() {
-  const memoryStore: Record<string, any[]> = {
-    challenges: [],
-    submissions: [],
-    parameter_store: [],
-    parameterStore: [],
-    infra_metrics: [],
-    infraMetrics: []
-  };
-
-  let challengeIdSeq = 1;
-  let submissionIdSeq = 1;
-  let metricsIdSeq = 1;
-
   dbInstance = {
     select: () => ({
       from: (tableObj: any) => {
-        const tableName = tableObj.key || tableObj._?.name || "challenges";
+        const tableName = getTableName(tableObj);
         let results = [...(memoryStore[tableName] || [])];
         
         const chain = {
@@ -126,7 +157,7 @@ function bootstrapInMemorySimulator() {
     
     insert: (tableObj: any) => ({
       values: (values: any) => {
-        const tableName = tableObj.key || tableObj._?.name || "submissions";
+        const tableName = getTableName(tableObj);
         const valArray = Array.isArray(values) ? values : [values];
         const insertedItems: any[] = [];
 
@@ -141,7 +172,7 @@ function bootstrapInMemorySimulator() {
             item.score = item.score || 0.0;
             item.processingTimeMs = item.processingTimeMs || 0;
             item.status = item.status || "submitted";
-          } else if (tableName === "infra_metrics" && !item.id) {
+          } else if (tableName === "infraMetrics" && !item.id) {
             item.id = metricsIdSeq++;
             item.recordedAt = new Date();
           }
@@ -165,7 +196,7 @@ function bootstrapInMemorySimulator() {
     update: (tableObj: any) => ({
       set: (updates: any) => ({
         where: (whereClause: any) => {
-          const tableName = tableObj.key || tableObj._?.name || "submissions";
+          const tableName = getTableName(tableObj);
           const store = memoryStore[tableName] || [];
           const { field, value } = extractWhereValue(whereClause);
           let updatedItem: any = null;
@@ -193,7 +224,7 @@ function bootstrapInMemorySimulator() {
 
     delete: (tableObj: any) => ({
       where: (whereClause: any) => {
-        const tableName = tableObj.key || tableObj._?.name || "submissions";
+        const tableName = getTableName(tableObj);
         const store = memoryStore[tableName] || [];
         const { field, value } = extractWhereValue(whereClause);
         

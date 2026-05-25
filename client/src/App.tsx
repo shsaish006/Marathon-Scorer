@@ -135,6 +135,7 @@ export default function App() {
   const [manualLanguage, setManualLanguage] = useState("java");
   const [manualCode, setManualCode] = useState("");
   const [manualFormError, setManualFormError] = useState("");
+  const [uploadAlert, setUploadAlert] = useState<{ message: string; challengeName: string } | null>(null);
 
   // Synchronize clock dynamically
   useEffect(() => {
@@ -228,9 +229,20 @@ export default function App() {
       if (!response.ok) throw new Error("File submission failed.");
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/submissions"] });
+      
+      const challengeName = challenges?.find(c => c.id === data.challengeId)?.name || "Challenge";
+      setUploadAlert({
+        message: "Solution successfully compiled and deployed to Fargate cluster!",
+        challengeName
+      });
+      
       setActiveTab("submissions"); // Switch to submissions tab immediately
+      
+      setTimeout(() => {
+        setUploadAlert(null);
+      }, 5000);
     }
   });
 
@@ -280,7 +292,12 @@ export default function App() {
   // Handle uploaded files parsing
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !challenges || challenges.length === 0) return;
+    if (!file) return;
+
+    if (!challenges || challenges.length === 0) {
+      alert("Active scorer challenges have not been synchronized. Please ensure the backend server is initialized.");
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = async (event) => {
@@ -292,9 +309,23 @@ export default function App() {
       if (ext === "py") lang = "python";
       else if (ext === "ts" || ext === "js") lang = "typescript";
 
-      // Default to the first challenge for uploaded files
+      // Deduce target challenge based on filename keywords
+      const nameLower = file.name.toLowerCase();
+      let targetChallenge = challenges[0]; // fallback
+      
+      if (nameLower.includes("slime")) {
+        const match = challenges.find(c => c.name.toLowerCase().includes("slime"));
+        if (match) targetChallenge = match;
+      } else if (nameLower.includes("astro") || nameLower.includes("router")) {
+        const match = challenges.find(c => c.name.toLowerCase().includes("astro") || c.name.toLowerCase().includes("router"));
+        if (match) targetChallenge = match;
+      } else if (nameLower.includes("grid")) {
+        const match = challenges.find(c => c.name.toLowerCase().includes("grid"));
+        if (match) targetChallenge = match;
+      }
+
       uploadSolution.mutate({
-        challengeId: challenges[0].id,
+        challengeId: targetChallenge.id,
         language: lang,
         code: content
       });
@@ -806,7 +837,7 @@ export default function App() {
                     </div>
                     <div className="border-t border-border pt-4 mt-4 space-y-2 font-mono text-[10px] text-muted-foreground">
                       <div><strong>INPUT SPEC:</strong> {c.inputSpec}</div>
-                      <div><strong>OUTPUT SPEC:</strong> {c.inputSpec}</div>
+                      <div><strong>OUTPUT SPEC:</strong> {c.outputSpec}</div>
                     </div>
                   </div>
                 ))}
@@ -939,6 +970,25 @@ export default function App() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {uploadAlert && (
+        <div className="fixed bottom-6 right-6 z-50 animate-bounce bg-emerald-500/15 border border-emerald-500/30 backdrop-blur-md p-4 rounded-xl shadow-lg flex items-start gap-3 max-w-sm">
+          <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-xs font-bold text-emerald-500 font-mono uppercase tracking-wide">Deployment Success</h4>
+            <p className="text-xs text-foreground font-semibold mt-1">{uploadAlert.message}</p>
+            <span className="text-[10px] text-muted-foreground block mt-1.5 font-mono">
+              Target Scorer: {uploadAlert.challengeName}
+            </span>
+          </div>
+          <button 
+            onClick={() => setUploadAlert(null)}
+            className="text-muted-foreground hover:text-foreground ml-auto p-0.5 rounded hover:bg-muted/40"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       )}
 
