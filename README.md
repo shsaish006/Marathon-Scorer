@@ -62,7 +62,71 @@ Persistent transaction metrics, challenge definitions, and evaluation logs are c
 
 ---
 
-## 3. Interactive DevOps Visualizer State Machines
+## 3. Technical Stack and Architectural Specifications
+
+This section details the theoretical specifications and inner workings of every technology stack configured in the Marathon Scorer repository.
+
+| Component | Technology Stack | Primary Role & Responsibility | Key Engineering Heuristics |
+| :--- | :--- | :--- | :--- |
+| **Frontend Web Tier** | React, Vite, TypeScript, TanStack Query | Reactive user cockpit, real-time EKS network topology animations, dynamic regional state-machines. | Staggered visual telemetry scanning, bi-directional terminal synchronization, glassmorphism dashboard aesthetics. |
+| **Backend Service Tier** | Node.js, Express, TypeScript, Drizzle ORM | Event controller layers, custom relational database adapters, multi-tier execution management. | Circular-reference reference scanning with visited set buffers, array-destructured insert return contracts. |
+| **Ingestion Microservice** | Go (Golang), lib/pq driver | Concurrent metrics aggregation and high-throughput telemetry ingestion backend. | Go channels, thread-safe connection pooling, automated TCP startup ping retry/keep-alive resiliency loops. |
+| **Evaluation Scorer** | Java (JDK 17), Cellular Automata | Sandbox algorithmic scorer executing in isolated container tasks. | 50x50 Toroidal cell grid neighbor checks, peak-survived colony score normalization, SSM parameter resolution. |
+| **Cloud & DevOps IaC** | Terraform, AWS Lambda, ECS, MSK, RDS | Event-driven container orchestrations, Multi-AZ database clustering, VPC private networks. | MSK backlog event-source mappings, dynamic ECS container scaling, Multi-AZ active-passive hot synchronous failovers. |
+
+### 3.1 Frontend Web Tier (Vite, React, TypeScript, TanStack Query, Vanilla HSL CSS)
+
+* **Vite Build System**: A high-performance, next-generation build tool leveraging native ES modules for ultra-fast Hot Module Replacement (HMR) and Rollup-based asset optimization, dramatically reducing development start times and streamlining production bundles.
+* **Reactive Client-State Management**: Built entirely on standard React hooks (`useState`, `useEffect`, `useMemo`, `useCallback`) and custom context. The EKS visualizer coordinates dynamic region swaps through declarative finite state machines (managing `isScanning`, `scanStep`, and `connectingHosts` state flows), updating telemetry contexts safely across components.
+* **TanStack Query (React Query) Integration**: Implements a clean, standardized asynchronous caching and server-state synchronization framework:
+  * *Query Key Schema*: Models requests using unique, structured keys (`["challenges"]`, `["submissions"]`, `["metrics"]`) to guarantee deterministic invalidation.
+  * *Caching & Stale-Time Rules*: Customizes state caching (`staleTime: 5000` and `cacheTime: 300000`), allowing pre-fetched data to satisfy instant route transitions while background fetches update lists transparently.
+  * *Automatic Resiliency Policies*: Configured with standard retry policies (`retry: 3`) and global boundary hooks to capture connection loss or internal database resets gracefully.
+  * *Mutation Pipelines*: Orchestrates data operations via standard mutation hooks (`useMutation`), triggering optimistic updates and invoking `queryClient.invalidateQueries` to synchronize cockpit displays immediately post-submission.
+* **Premium Tailored HSL CSS**: Designed without bulky runtime UI libraries. The interface leverages custom CSS properties, flexible flex/grid layouts, responsive SVG telemetry sweeps, and highly polished glassmorphism panels to create an elite, immersive user experience.
+
+### 3.2 Backend Service Tier (Node.js, Express, TypeScript, Multi-Tier Architecture)
+
+* **Decoupled Multi-Tier Layering**: Strictly organizes backend concerns across distinct system boundaries:
+  * *Router Layer*: Standardizes API routing, intercepting requests and applying Express JSON body parsers.
+  * *Controller Layer*: Directs flow orchestration, decoding route parameters and generating structured, type-safe API packages.
+  * *Service Layer*: Hosts abstract business workflows, coordinating scoring run simulations and mock infrastructure events.
+  * *Repository Layer*: Interfaces directly with the database engine, decoupling sql-level query logic from route handlers.
+* **High-Fidelity Drizzle ORM Simulator**:
+  * *Engineering Intent*: Provisioned to allow full-stack local operations when access to an external PostgreSQL RDS instance is unavailable, preventing connection errors while supporting standard Drizzle syntax structures.
+  * *Circular Reference Resolution (Drizzle Object Graph Resolver)*: Drizzle column descriptors and table relations contain nested, circular references linking back to core database schemas. To prevent recursive key scanning from triggering stack overflows (`Maximum call stack size exceeded`), the simulator incorporates a visited reference register using a JavaScript `Set`. The algorithm ignores internal ORM keys (`table`, `schema`, `columns`, `config`, `shouldInlineParams`) and filters out SQL chunk arrays to extract valid primitives safely.
+  * *Array Destructuring `.returning()` Contract*: Relational database drivers resolve inserts as lists. To prevent runtime type errors during destructuring assignments (e.g., `const [result] = await db.insert(...).returning()`), the mock database `.returning()` pipeline is built to always yield a standard iterable array, satisfying the ORM type contracts.
+
+### 3.3 Go Ingestion Aggregator Microservice (Go Standard Library, lib/pq)
+
+* **High-Performance Concurrency Model**: Engineered in Go to support lightweight, high-speed HTTP metrics ingestion. Telemetry payloads dispatched from isolated container tasks are processed in a highly concurrent environment.
+* **Resilient Connection Pooling & Keep-Alives**:
+  * *Thread-Safe Pooling*: Leverages the standard Go `database/sql` driver, managing client sessions across a highly efficient connection pool to prevent database driver exhaustion.
+  * *Idempotent Startup Retry Loop*: If the primary database experiences a cold boot or temporary failover network delay, the aggregator executes a robust startup retry routine, attempting to ping the target host up to five times with a three-second delay between checks.
+* **Concurrent Routing Engine**: Binds to a dedicated socket and decodes inbound JSON telemetry bodies with low-allocation decoders (`json.NewDecoder`). Records transaction metrics directly into the centralized `infra_metrics` database ledger, providing real-time data to EKS visualizer charts.
+
+### 3.4 Java Containerized Scoring Engine (Java 17, Cellular Automata)
+
+* **Sandbox Task Invocation**: Scorer instances are containerized inside Docker and executed as on-demand tasks within AWS ECS Fargate. The Java bootstrapping process (`Scorer.java`) resolves runtime properties dynamically:
+  * Retrieves environment parameters (`MARATHON_CHALLENGE_ID`, `MARATHON_SUBMISSION_ID`, and `SSM_PARAMETER_PATH`).
+  * Queries the AWS Systems Manager (SSM) Parameter Store to fetch challenge-specific timing constraints, evaluation parameters, and scoring modes.
+* **BioSlime Survival Cellular Automata Engine**:
+  * *Toroidal Coordinate Wrapping*: The core simulation runs on a 50x50 cellular automata grid. Grid boundary checks wrap coordinates modularly (`(r + dr + GRID_SIZE) % GRID_SIZE`), modeling a seamless toroidal space.
+  * *Biological State Transitions*: Implements Conway-style cellular growth and decay loops: existing colonies persist if they have two or three active neighbors, while dead cells spawn slime colonies if they border exactly three active neighbor cells.
+  * *Provisional Score Normalization*: Evaluates solutions based on the peak active slime population recorded across 200 ticks, calculating a normalized double score capped at a 100.0 baseline (`Math.min(100.0, baseScore / 10.0)`).
+* **Asynchronous Callback Gateway**: On simulation exit, the scoring container constructs a telemetry package and dispatches a secure HTTP POST callback to the review portal (`REVIEW_API_URL`), recording execution times, status, and scores before terminating.
+
+### 3.5 Infrastructure as Code & Cloud Orchestration (Terraform, AWS VPC, EKS, Multi-AZ RDS)
+
+* **Terraform Declarative Blueprints**: Standardizes the complete infrastructure deployment topology inside `/terraform`:
+  * *VPC Networking Heuristics*: Designs a private Virtual Private Cloud (VPC) with segregated subnets (public subnets for application ingress load balancers, private subnets for EKS compute nodes, and isolated backend subnets for databases).
+  * *AWS MSK (Kafka) Queue Partitions*: Deploys a managed streaming Kafka cluster configured with multiple partitions, decoupling client uploads from scoring compute grids.
+  * *AWS Lambda Event Orchestrators*: Configures Serverless Lambda microVMs triggered by MSK topic backlogs. Calculates queue latency and triggers on-demand container executions.
+  * *Multi-AZ RDS High Availability*: Sets up a PostgreSQL RDS cluster with active-passive synchronous replication across separate Availability Zones. Telemetry controllers perform automated health checks to reroute connection pools if a regional node fails.
+
+---
+
+## 4. Interactive DevOps Visualizer State Machines
 
 The cockpit dashboard features an advanced Cluster Orchestration Visualizer simulating real-world failures, autoscaling traffic events, and Multi-Region cluster telemetry state machines.
 
@@ -114,7 +178,7 @@ To demonstrate structural disaster recovery patterns, the visualizer allows user
 
 ---
 
-## 4. Multi-Layer DevOps Flowcharts
+## 5. Multi-Layer DevOps Flowcharts
 
 ### 4.1 End-to-End Solution Scoring Pipeline
 
@@ -170,7 +234,7 @@ The sequential network scanning flowchart illustrates how EKS host controllers p
 
 ---
 
-## 5. Theoretical CI/CD Pipeline and Static Verification Case Study
+## 6. Theoretical CI/CD Pipeline and Static Verification Case Study
 
 This section details the theoretical framework of the automated continuous integration and continuous deployment (CI/CD) pipelines configured inside this repository.
 
@@ -205,7 +269,7 @@ During continuous integration runs, a parsing error was identified causing Job 1
 
 ---
 
-## 6. High-Fidelity Database Simulator and Diagnostic Case Studies
+## 7. High-Fidelity Database Simulator and Diagnostic Case Studies
 
 This section details the theoretical analysis, diagnostics, and architectural resolutions applied to the platform's simulated data layer, solution ingestion pipelines, and visual spec grids.
 
